@@ -17,6 +17,7 @@ using boost::asio::ssl::context;
 class OKXWebSocket {
 public:
     OKXWebSocket();
+    void startFrontendListener();
     void connect(const std::string& uri);
     void subscribe(const std::string& channel);
     void listen();

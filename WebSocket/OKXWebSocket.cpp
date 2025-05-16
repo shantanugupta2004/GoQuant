@@ -1,10 +1,15 @@
 #include <boost/asio/ssl.hpp>
 #include <boost/beast/websocket/ssl.hpp>
+#include <boost/asio.hpp>
+#include <boost/beast.hpp>
 #include "OKXWebSocket.h"
 #include <boost/json.hpp>
 #include <iostream>
 
 using namespace boost::json;
+using namespace boost::asio;
+using namespace boost::beast;
+using tcp = ip::tcp;
 
 OKXWebSocket::OKXWebSocket()
     : resolver_(context_), 
@@ -12,6 +17,46 @@ OKXWebSocket::OKXWebSocket()
       ws_(context_, ctx_) 
 {
     ctx_.set_default_verify_paths();
+}
+
+void OKXWebSocket::startFrontendListener() {
+    try {
+        io_context ioc;
+        tcp::acceptor acceptor(ioc, tcp::endpoint(tcp::v4(), 8081));
+        std::cout << "[INFO] WebSocket listener started on ws://localhost:8081" << std::endl;
+
+        for (;;) {
+            tcp::socket socket(ioc);
+            acceptor.accept(socket);
+
+            websocket::stream<tcp::socket> ws(std::move(socket));
+            ws.accept();
+            std::cout << "[INFO] Client connected to WebSocket" << std::endl;
+
+            for (;;) {
+                flat_buffer buffer;
+                ws.read(buffer);
+                
+                std::string msg = buffers_to_string(buffer.data());
+                std::cout << "[RECEIVED] " << msg << std::endl;
+
+                // TODO: Call your trading logic here and get the results
+                std::string response = R"({
+                    "slippage": "0.02%",
+                    "fees": "0.15%",
+                    "marketImpact": "0.03%",
+                    "netCost": "1002 USDT",
+                    "makerTaker": "70/30",
+                    "latency": "150"
+                })";
+
+                ws.text(true);
+                ws.write(net::buffer(response));
+            }
+        }
+    } catch (const std::exception& e) {
+        std::cerr << "Error in WebSocket Listener: " << e.what() << std::endl;
+    }
 }
 
 
