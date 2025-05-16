@@ -8,7 +8,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 include_directories(WebSocket)
 
 # Add source files
-add_executable(GoQuant main.cpp WebSocket/OKXWebSocket.cpp)
+add_executable(GoQuant main.cpp WebSocket/OKXWebSocket.cpp Simulator/TradeSimulator.cpp)
 
 #Link necessary libraries
 target_link_libraries(GoQuant

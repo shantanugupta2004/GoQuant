@@ -18,6 +18,7 @@ class OKXWebSocket {
 public:
     OKXWebSocket();
     void startFrontendListener();
+    void handleIncomingMessage(const std::string& message, websocket::stream<tcp::socket>& ws);
     void connect(const std::string& uri);
     void subscribe(const std::string& channel);
     void listen();

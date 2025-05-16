@@ -5,6 +5,7 @@
 #include "OKXWebSocket.h"
 #include <boost/json.hpp>
 #include <iostream>
+#include "../Simulator/TradeSimulator.h"
 
 using namespace boost::json;
 using namespace boost::asio;
@@ -18,6 +19,54 @@ OKXWebSocket::OKXWebSocket()
 {
     ctx_.set_default_verify_paths();
 }
+
+void OKXWebSocket::handleIncomingMessage(const std::string& message, websocket::stream<tcp::socket>& ws) {
+    try {
+        boost::json::value jsonVal = boost::json::parse(message);
+        boost::json::object jsonObject = jsonVal.as_object();
+
+        // Parse input parameters
+        std::string spotAsset = boost::json::value_to<std::string>(jsonObject["spotAsset"]);
+        std::string orderType = boost::json::value_to<std::string>(jsonObject["orderType"]);
+
+        double quantity = 0.0;
+        if (jsonObject["quantity"].kind() == boost::json::kind::int64)
+            quantity = static_cast<double>(jsonObject["quantity"].as_int64());
+        else
+            quantity = jsonObject["quantity"].as_double();
+
+        double volatility = 0.0;
+        if (jsonObject["volatility"].kind() == boost::json::kind::int64)
+            volatility = static_cast<double>(jsonObject["volatility"].as_int64());
+        else
+            volatility = jsonObject["volatility"].as_double();
+
+        std::string feeTier = boost::json::value_to<std::string>(jsonObject["feeTier"]);
+
+        std::cout << "[INFO] Parsed Quantity: " << quantity << ", Volatility: " << volatility << std::endl;
+
+        // Run simulation
+        TradeSimulator simulator(spotAsset, orderType, quantity, volatility, feeTier);
+        SimulationResult result = simulator.run();
+
+        // Prepare JSON response
+        boost::json::object response;
+        response["entryPrice"] = result.entryPrice;
+        response["executionPrice"] = result.executionPrice;
+        response["fees"] = result.fees;
+        response["pnl"] = result.pnl;
+
+        std::string responseStr = boost::json::serialize(response);
+
+        // Send response to client
+        ws.write(boost::asio::buffer(responseStr));
+    }
+    catch (const std::exception& ex) {
+        std::cerr << "[ERROR] Message Handling Failed: " << ex.what() << std::endl;
+    }
+}
+
+
 
 void OKXWebSocket::startFrontendListener() {
     try {
@@ -36,28 +85,19 @@ void OKXWebSocket::startFrontendListener() {
             for (;;) {
                 flat_buffer buffer;
                 ws.read(buffer);
-                
+
                 std::string msg = buffers_to_string(buffer.data());
                 std::cout << "[RECEIVED] " << msg << std::endl;
 
-                // TODO: Call your trading logic here and get the results
-                std::string response = R"({
-                    "slippage": "0.02%",
-                    "fees": "0.15%",
-                    "marketImpact": "0.03%",
-                    "netCost": "1002 USDT",
-                    "makerTaker": "70/30",
-                    "latency": "150"
-                })";
-
-                ws.text(true);
-                ws.write(net::buffer(response));
+                // ✨ Handle the incoming message
+                handleIncomingMessage(msg, ws);
             }
         }
     } catch (const std::exception& e) {
-        std::cerr << "Error in WebSocket Listener: " << e.what() << std::endl;
+        std::cerr << "[ERROR] WebSocket Listener Error: " << e.what() << std::endl;
     }
 }
+
 
 
 void OKXWebSocket::connect(const std::string& uri) {
