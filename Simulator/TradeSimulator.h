@@ -8,18 +8,17 @@ struct SimulationResult {
     double entryPrice;
     double executionPrice;
     double fees;
-    double pnl;           // Profit and Loss
-    double slippage;      // Expected Slippage
-    double tradeCost;     // Net Cost (Fees + Market Impact + Slippage)
-    double marketImpact;  // Expected Market Impact
-    double makerTaker;    // Maker/Taker proportion (0.5 means 50-50)
-    double latency;       // Internal Latency in milliseconds
+    double pnl;
+    double slippage;
+    double tradeCost;
+    double marketImpact;
+    double makerTaker;
+    double latency;
 };
 
 class TradeSimulator {
 public:
     TradeSimulator(const std::string& spotAsset, const std::string& orderType, double quantity, double volatility, const std::string& feeTier);
-
     SimulationResult run();
 
 private:
@@ -30,10 +29,11 @@ private:
     std::string feeTier_;
 
     double fetchMarketPrice();
-    double calculateFees(double amount);
-    double calculateSlippage(double quantity);
-    double calculateMarketImpact(double quantity);
-    double calculateMakerTakerProportion();
+    double calculateFees(double notional);
+    double estimateSlippage(double quantity);
+    double estimateMarketImpact(double quantity, double volatility);
+    double estimateMakerTakerProportion(double quantity, double volatility);
+    double measureLatency(const std::chrono::high_resolution_clock::time_point& start);
 };
 
 #endif // TRADESIMULATOR_H
